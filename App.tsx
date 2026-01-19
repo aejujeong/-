@@ -97,7 +97,7 @@ const App: React.FC = () => {
     wisdomDb.initialize();
   }, []);
 
-  // 로그인 체크 헬퍼
+  // 로그인 체크 및 팝업 유도
   const checkLogin = () => {
     if (!userName) {
       setSetupStep('platform');
