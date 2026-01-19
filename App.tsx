@@ -38,47 +38,6 @@ const AppleIcon = () => (
   </svg>
 );
 
-// --- '인간다움' 시그니처 아이콘 셋 ---
-
-export const AmbientLatinCross = ({ size, className, style }: { size: number, className: string, style?: React.CSSProperties }) => (
-  <svg 
-    width={size} 
-    height={size} 
-    viewBox="0 0 24 24" 
-    fill="none" 
-    className={`${className} animate-tilt-cross`} 
-    style={{ ...style, transform: 'rotate(10deg)', transformOrigin: 'center bottom' }}
-  >
-    <path d="M10 2H14V8H20V12H14V22H10V12H4V8H10V2Z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="miter" />
-  </svg>
-);
-
-export const AmbientLotus = ({ size, className, style }: { size: number, className: string, style?: React.CSSProperties }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={`${className} animate-tilt`} style={{ ...style, transform: 'rotate(20deg)', transformOrigin: 'center bottom' }}
-  >
-    <path d="M12 22C12 22 16.5 18 16.5 12.5C16.5 9.5 14.5 7.5 12 7.5C9.5 7.5 7.5 9.5 7.5 12.5C7.5 18 12 22 12 22Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
-    <path d="M12 22C9.5 21 3.5 17.5 3.5 12.5C3.5 9.5 5.5 8.5 8 10C10.5 11.5 11.5 17.5 12 22" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-    <path d="M12 22C14.5 21 20.5 17.5 20.5 12.5C20.5 9.5 18.5 8.5 16 10C13.5 11.5 12.5 17.5 12 22" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-  </svg>
-);
-
-export const AmbientEnergy = ({ size, className, style }: { size: number, className: string, style?: React.CSSProperties }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={`${className} animate-tilt`} style={style}>
-    <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" />
-    <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1" strokeDasharray="3 6" opacity="0.3" />
-    <circle cx="12" cy="12" r="6" stroke="currentColor" strokeWidth="0.8" opacity="0.2" />
-  </svg>
-);
-
-export const AmbientSparkles = ({ size, className, style }: { size: number, className: string, style?: React.CSSProperties }) => (
-  <Sparkles 
-    size={size} 
-    className={`${className} animate-tilt`} 
-    style={style} 
-    strokeWidth={2}
-  />
-);
-
 const App: React.FC = () => {
   const [view, setView] = useState<AppView>('home');
   const [showArchive, setShowArchive] = useState(false);
@@ -92,13 +51,11 @@ const App: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showSubscription, setShowSubscription] = useState(false);
   
-  // 글로벌 미션 상태
   const [activeMissions, setActiveMissions] = useState<MissionItem[]>([]);
   const [missionHistory, setMissionHistory] = useState<MissionRecord[]>([]);
   const [levelDetailTab, setLevelDetailTab] = useState<'energy' | 'mission'>('energy');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Setup Steps: 'platform' -> 'auth' -> 'profile'
   const [showSetup, setShowSetup] = useState(false);
   const [setupStep, setSetupStep] = useState<'platform' | 'auth' | 'profile'>('platform');
   const [selectedPlatform, setSelectedPlatform] = useState<string>('');
@@ -117,46 +74,19 @@ const App: React.FC = () => {
   const messages = useMemo(() => messagesByMode[selectedMode], [messagesByMode, selectedMode]);
   const isLocked = useMemo(() => messages.filter(m => m.role === 'user').length >= 5, [messages]);
 
-  const modeStatus = useMemo(() => {
-    const lastAssistantMsg = [...messages].reverse().find(m => m.role === 'assistant' && m.data);
-    if (lastAssistantMsg?.data) {
-      const numericLevel = parseInt(lastAssistantMsg.data.user_analysis.level.replace(/[^0-9]/g, '')) || 0;
-      return { level: `${numericLevel}${lang === 'en' ? ' Level' : '단계'}`, lux: lastAssistantMsg.data.user_analysis.lux };
-    }
-    return currentEnergy ? { level: `${currentEnergy.level}${lang === 'en' ? ' Level' : '단계'}`, lux: currentEnergy.lux_score } : null;
-  }, [messages, currentEnergy, lang]);
-
   useEffect(() => {
     const browserLang = navigator.language.split('-')[0];
-    const supported: AppLanguage[] = ['ko', 'ja', 'fr', 'en'];
-    const detected = supported.includes(browserLang as AppLanguage) ? (browserLang as AppLanguage) : 'en';
-    const savedLang = localStorage.getItem('app_lang') as AppLanguage;
-    setLang(savedLang || detected);
+    const detected = (['ko', 'ja', 'fr', 'en'] as AppLanguage[]).includes(browserLang as AppLanguage) ? (browserLang as AppLanguage) : 'en';
+    setLang((localStorage.getItem('app_lang') as AppLanguage) || detected);
     
     const savedName = localStorage.getItem('user_name');
     const savedBirth = localStorage.getItem('user_birth');
     const savedHistory = localStorage.getItem('energy_history');
     const savedAllUsers = localStorage.getItem('registered_users_db');
-    const savedMissions = localStorage.getItem('active_missions');
-    const savedMissionHistory = localStorage.getItem('mission_history');
     
-    if (savedAllUsers) {
-      try { setAllUsers(JSON.parse(savedAllUsers)); } catch(e) {}
-    }
-
-    if (savedMissions) {
-      try { setActiveMissions(JSON.parse(savedMissions)); } catch(e) {}
-    }
-
-    if (savedMissionHistory) {
-      try { setMissionHistory(JSON.parse(savedMissionHistory)); } catch(e) {}
-    }
-
-    if (savedName) {
-      setUserName(savedName);
-      if (savedBirth) setUserBirth(savedBirth);
-    }
-
+    if (savedAllUsers) { try { setAllUsers(JSON.parse(savedAllUsers)); } catch(e) {} }
+    if (savedName) setUserName(savedName);
+    if (savedBirth) setUserBirth(savedBirth);
     if (savedHistory) {
       try {
         const parsed: EnergyRecord[] = JSON.parse(savedHistory);
@@ -167,14 +97,6 @@ const App: React.FC = () => {
     wisdomDb.initialize();
   }, []);
 
-  useEffect(() => {
-    localStorage.setItem('active_missions', JSON.stringify(activeMissions));
-  }, [activeMissions]);
-
-  useEffect(() => {
-    localStorage.setItem('mission_history', JSON.stringify(missionHistory));
-  }, [missionHistory]);
-
   // 로그인 체크 헬퍼
   const checkLogin = () => {
     if (!userName) {
@@ -183,31 +105,6 @@ const App: React.FC = () => {
       return false;
     }
     return true;
-  };
-
-  const handleToggleMission = (mission: MissionItem) => {
-    if (!checkLogin()) return;
-    const isAlreadyIn = activeMissions.some(m => m.title === mission.title);
-    
-    if (!isAlreadyIn && activeMissions.length >= 3) {
-      const msg = lang === 'ko' 
-        ? '미션은 최대 3개까지만 가능합니다. 기존 미션을 수행하신 뒤 다시 선택해주십시오.' 
-        : 'Max 3 missions allowed. Complete existing ones first.';
-      setToastMessage(msg);
-      setTimeout(() => setToastMessage(null), 3000);
-      return;
-    }
-
-    setActiveMissions(prev => 
-      isAlreadyIn
-        ? prev.filter(m => m.title !== mission.title) 
-        : [...prev, mission]
-    );
-  };
-
-  const handleSaveMissionRecord = (record: MissionRecord) => {
-    setMissionHistory(prev => [record, ...prev]);
-    setActiveMissions(prev => prev.filter(m => m.title !== record.title));
   };
 
   const handleStartAuth = (platform: string) => {
@@ -221,10 +118,7 @@ const App: React.FC = () => {
   };
 
   const handleAuthSubmit = () => {
-    if (!loginId.trim() || !loginPw.trim()) {
-      alert(lang === 'ko' ? '계정 정보와 비밀번호를 모두 입력해주십시오.' : 'Please enter ID and password.');
-      return;
-    }
+    if (!loginId.trim() || !loginPw.trim()) return;
     const existingUser = allUsers.find(u => u.id === loginId);
     if (existingUser && existingUser.name) {
       setUserName(existingUser.name);
@@ -239,50 +133,29 @@ const App: React.FC = () => {
   };
 
   const handleSetupComplete = () => {
-    if (!userName.trim() || !userBirth.trim()) {
-      alert(lang === 'ko' ? '이름과 생년월일을 모두 입력해주십시오.' : 'Please enter both name and date of birth.');
-      return;
-    }
+    if (!userName.trim() || !userBirth.trim()) return;
     localStorage.setItem('user_name', userName);
     localStorage.setItem('user_birth', userBirth);
-    const newUser = { id: loginId, name: userName, birth: userBirth };
-    const updatedAllUsers = [...allUsers.filter(u => u.id !== loginId), newUser];
+    const updatedAllUsers = [...allUsers.filter(u => u.id !== loginId), { id: loginId, name: userName, birth: userBirth }];
     setAllUsers(updatedAllUsers);
     localStorage.setItem('registered_users_db', JSON.stringify(updatedAllUsers));
     setShowSetup(false);
   };
 
-  const handleUpdateProfile = () => {
-    if (!userName.trim() || !userBirth.trim()) return;
-    localStorage.setItem('user_name', userName);
-    localStorage.setItem('user_birth', userBirth);
-    const updatedAllUsers = [...allUsers.filter(u => u.name !== userName), { id: loginId, name: userName, birth: userBirth }];
-    setAllUsers(updatedAllUsers);
-    localStorage.setItem('registered_users_db', JSON.stringify(updatedAllUsers));
-    alert(lang === 'ko' ? '정보가 성공적으로 수정되었습니다.' : 'Information updated.');
-    setView('home');
-  };
-
   const handleSend = async () => {
     if (!input.trim() || isLoading || isLocked) return;
-    const text = input.trim();
-    const userMessage: ChatMessage = { role: 'user', content: text, timestamp: Date.now() };
+    const userMessage: ChatMessage = { role: 'user', content: input.trim(), timestamp: Date.now() };
     setMessagesByMode(prev => ({ ...prev, [selectedMode]: [...prev[selectedMode], userMessage] }));
     setInput('');
     setIsLoading(true);
     try {
       const response = await processConsciousness([...messages, userMessage].map(m => ({ role: m.role, content: m.content })), selectedMode, lang);
       const ts = Date.now();
-      const responseLevel = parseInt(response.user_analysis.level.replace(/[^0-9]/g, '')) || 1;
-      const luxVal = response.user_analysis.lux;
       const newRecord: EnergyRecord = { 
-        date: new Date(ts).toISOString(), 
-        timestamp: ts, 
-        level: responseLevel, 
-        lux_score: luxVal, 
-        status_label: response.user_analysis.level, 
-        summary: response.user_analysis.reasoning.logic, 
-        metrics: response.metrics 
+        date: new Date(ts).toISOString(), timestamp: ts, 
+        level: parseInt(response.user_analysis.level.replace(/[^0-9]/g, '')) || 1, 
+        lux_score: response.user_analysis.lux, status_label: response.user_analysis.level, 
+        summary: response.user_analysis.reasoning.logic, metrics: response.metrics 
       };
       setEnergyHistory(prev => {
         const updated = [...prev, newRecord].slice(-30);
@@ -292,29 +165,18 @@ const App: React.FC = () => {
       setCurrentEnergy(newRecord);
       setMessagesByMode(prev => ({ ...prev, [selectedMode]: [...prev[selectedMode], { role: 'assistant', content: "", timestamp: ts, data: response } as ChatMessage] }));
     } catch (error) {
-      setMessagesByMode(prev => ({ ...prev, [selectedMode]: [...prev[selectedMode], { role: 'assistant', content: lang === 'ko' ? '연결 오류가 발생했습니다.' : 'Connection error occurred.', timestamp: Date.now() } as ChatMessage] }));
+      setMessagesByMode(prev => ({ ...prev, [selectedMode]: [...prev[selectedMode], { role: 'assistant', content: '오류가 발생했습니다.', timestamp: Date.now() } as ChatMessage] }));
     } finally { setIsLoading(false); }
   };
 
-  useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' }); }, [messages, isLoading]);
-
   const renderHeader = (colorClass: string) => (
     <header className={`absolute top-0 left-0 right-0 z-[100] px-6 py-5 flex items-center justify-between pointer-events-none ${colorClass}`}>
-      {userName ? (
-        <button 
-          onClick={() => setView('profile')}
-          className="text-current text-xs font-bold pointer-events-auto px-2 py-1 active:opacity-60 transition-all drop-shadow-md"
-        >
-          {userName} ({currentEnergy?.level || 0}단계)
-        </button>
-      ) : (
-        <button 
-          onClick={() => { setSetupStep('platform'); setShowSetup(true); }}
-          className="text-current text-xs font-bold pointer-events-auto px-2 py-1 active:opacity-60 transition-all drop-shadow-md"
-        >
-          로그인
-        </button>
-      )}
+      <button 
+        onClick={() => userName ? setView('profile') : (setSetupStep('platform'), setShowSetup(true))}
+        className="text-current text-xs font-bold pointer-events-auto px-2 py-1 active:opacity-60 transition-all drop-shadow-md"
+      >
+        {userName ? `${userName} (${currentEnergy?.level || 0}단계)` : '로그인'}
+      </button>
       <button 
         onClick={() => setIsMenuOpen(true)} 
         className="text-current pointer-events-auto p-2 active:opacity-60 transition-all drop-shadow-md"
@@ -324,210 +186,88 @@ const App: React.FC = () => {
     </header>
   );
 
-  const renderSetup = () => {
-    return (
-      <div className="fixed inset-0 z-[250] flex flex-col bg-cosmic-bg text-slate-900 overflow-y-auto pt-20 pb-12 px-10 items-center animate-in fade-in duration-300">
-        <button onClick={() => setShowSetup(false)} className="absolute top-8 right-8 p-2 text-slate-300 hover:text-slate-900 transition-colors">
-          <X size={24} />
-        </button>
-        <div className="w-full space-y-12 max-w-sm">
-          <div className="text-center space-y-4">
-             <div className="w-20 h-20 rounded-[2.5rem] bg-white border border-slate-200/60 flex items-center justify-center mx-auto shadow-premium group mb-6">
-                <div className="relative flex flex-col items-center h-10 justify-center animate-tilt">
-                   <div className="w-4 h-4 bg-growth-blue rounded-full mb-1" />
-                   <div className="w-8 h-4 bg-growth-blue/40 rounded-t-full" />
-                </div>
-             </div>
-             <h1 className="serif text-3xl font-bold text-slate-900 leading-tight">인간다움</h1>
-             <p className="text-sm text-slate-400 font-medium italic">성자들의 지혜로 에고를 해체하고<br/>관찰자 자아를 회복해주십시오.</p>
-          </div>
-
-          {setupStep === 'platform' && (
-            <div className="space-y-4 pt-4 animate-in fade-in duration-500">
-              <button 
-                onClick={() => handleStartAuth('kakao')}
-                className="w-full h-16 rounded-3xl bg-[#FEE500] text-[#3A1D1D] font-bold text-sm shadow-sm flex items-center justify-center gap-3 active:scale-95 transition-all"
-              >
-                <KakaoIcon /> 카카오톡으로 시작하기
-              </button>
-              <button 
-                onClick={() => handleStartAuth('google')}
-                className="w-full h-16 rounded-3xl bg-white border border-slate-200 text-slate-700 font-bold text-sm shadow-sm flex items-center justify-center gap-3 active:scale-95 transition-all"
-              >
-                <GoogleIcon /> Google로 시작하기
-              </button>
-              <button 
-                onClick={() => handleStartAuth('apple')}
-                className="w-full h-16 rounded-3xl bg-black text-white font-bold text-sm shadow-sm flex items-center justify-center gap-3 active:scale-95 transition-all"
-              >
-                <AppleIcon /> Apple로 시작하기
-              </button>
-              <button 
-                onClick={() => handleStartAuth('guest')}
-                className="w-full h-16 rounded-3xl bg-slate-100 text-slate-500 font-bold text-sm shadow-sm flex items-center justify-center gap-3 active:scale-95 transition-all mt-2"
-              >
-                <User size={18} /> 가입 없이 이용하기
-              </button>
-            </div>
-          )}
-
-          {setupStep === 'auth' && (
-            <div className="space-y-6 animate-in slide-in-from-right-10 duration-500">
-              <div className="flex items-center gap-4 mb-2">
-                <button onClick={() => setSetupStep('platform')} className="text-slate-400"><ChevronLeft size={24} /></button>
-                <h3 className="text-lg font-bold flex items-center gap-2">
-                  {selectedPlatform === 'kakao' && <KakaoIcon />}
-                  {selectedPlatform === 'google' && <GoogleIcon />}
-                  {selectedPlatform === 'apple' && <AppleIcon />}
-                  인증하기
-                </h3>
+  const renderSetup = () => (
+    <div className="fixed inset-0 z-[250] flex flex-col bg-cosmic-bg text-slate-900 overflow-y-auto pt-20 pb-12 px-10 items-center animate-in fade-in duration-300">
+      <button onClick={() => setShowSetup(false)} className="absolute top-8 right-8 p-2 text-slate-300 hover:text-slate-900 transition-colors">
+        <X size={24} />
+      </button>
+      <div className="w-full space-y-12 max-w-sm">
+        <div className="text-center space-y-4">
+           <div className="w-20 h-20 rounded-[2.5rem] bg-white border border-slate-200/60 flex items-center justify-center mx-auto shadow-premium mb-6">
+              <div className="relative flex flex-col items-center h-10 justify-center animate-tilt">
+                 <div className="w-4 h-4 bg-growth-blue rounded-full mb-1" />
+                 <div className="w-8 h-4 bg-growth-blue/40 rounded-t-full" />
               </div>
-              <div className="space-y-4">
-                <div className="relative">
-                  <Mail size={18} className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300" />
-                  <input 
-                    type="email" 
-                    value={loginId}
-                    onChange={(e) => setLoginId(e.target.value)}
-                    placeholder="이메일 또는 아이디를 입력해주십시오"
-                    className="w-full h-16 bg-white border border-slate-100 rounded-3xl px-14 text-[15px] focus:outline-none focus:ring-2 focus:ring-growth-blue/10 shadow-inner-soft transition-all"
-                  />
-                </div>
-                <div className="relative">
-                  <Key size={18} className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300" />
-                  <input 
-                    type="password" 
-                    value={loginPw}
-                    onChange={(e) => setLoginPw(e.target.value)}
-                    placeholder="비밀번호를 입력해주십시오"
-                    className="w-full h-16 bg-white border border-slate-100 rounded-3xl px-14 text-[15px] focus:outline-none focus:ring-2 focus:ring-growth-blue/10 shadow-inner-soft transition-all"
-                  />
-                </div>
-              </div>
-              <button 
-                onClick={handleAuthSubmit}
-                className="w-full h-16 rounded-full bg-slate-900 text-white font-bold shadow-premium active:scale-95 transition-all"
-              >
-                인증 완료하기
-              </button>
-            </div>
-          )}
-
-          {setupStep === 'profile' && (
-            <div className="space-y-8 animate-in slide-in-from-bottom-10 duration-500">
-              <div className="text-center space-y-2">
-                <h3 className="text-xl font-bold">환영합니다!</h3>
-                <p className="text-xs text-slate-400">서비스 이용을 위해 사용자 이름을 설정해주십시오.</p>
-              </div>
-              <div className="space-y-6">
-                <div className="space-y-2">
-                  <label className="text-meta px-1">이름 설정</label>
-                  <div className="relative">
-                    <User size={18} className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300" />
-                    <input 
-                      type="text" 
-                      value={userName} 
-                      onChange={(e) => setUserName(e.target.value)}
-                      placeholder="예: 관찰자"
-                      className="w-full h-16 bg-white border border-slate-100 rounded-3xl px-14 text-[15px] focus:outline-none focus:ring-2 focus:ring-growth-blue/10 shadow-inner-soft transition-all"
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-meta px-1">생년월일</label>
-                  <div className="relative">
-                    <Calendar size={18} className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300" />
-                    <input 
-                      type="date" 
-                      value={userBirth} 
-                      onChange={(e) => setUserBirth(e.target.value)}
-                      className="w-full h-16 bg-white border border-slate-100 rounded-3xl px-14 text-[15px] focus:outline-none focus:ring-2 focus:ring-growth-blue/10 shadow-inner-soft transition-all"
-                    />
-                  </div>
-                </div>
-              </div>
-              <button 
-                onClick={handleSetupComplete}
-                className="w-full h-18 rounded-[2.2rem] bg-slate-900 text-white font-bold text-base shadow-premium active:scale-95 transition-all flex items-center justify-center gap-3"
-              >
-                설정 완료 및 대화 시작하기 <ChevronRight size={20} />
-              </button>
-            </div>
-          )}
-
-          <p className="text-[10px] text-slate-300 text-center uppercase tracking-[0.2em] pt-8">
-            계속 진행함으로써 서비스 이용약관 및 <br/>개인정보 처리방침에 동의하시게 됩니다.
-          </p>
+           </div>
+           <h1 className="serif text-3xl font-bold text-slate-900 leading-tight">인간다움</h1>
+           <p className="text-sm text-slate-400 font-medium italic">성자들의 지혜로 에고를 해체하고<br/>관찰자 자아를 회복해주십시오.</p>
         </div>
+
+        {setupStep === 'platform' && (
+          <div className="space-y-4 pt-4">
+            <button onClick={() => handleStartAuth('kakao')} className="w-full h-16 rounded-3xl bg-[#FEE500] text-[#3A1D1D] font-bold text-sm shadow-sm flex items-center justify-center gap-3 active:scale-95 transition-all"><KakaoIcon /> 카카오톡으로 시작하기</button>
+            <button onClick={() => handleStartAuth('google')} className="w-full h-16 rounded-3xl bg-white border border-slate-200 text-slate-700 font-bold text-sm shadow-sm flex items-center justify-center gap-3 active:scale-95 transition-all"><GoogleIcon /> Google로 시작하기</button>
+            <button onClick={() => handleStartAuth('apple')} className="w-full h-16 rounded-3xl bg-black text-white font-bold text-sm shadow-sm flex items-center justify-center gap-3 active:scale-95 transition-all"><AppleIcon /> Apple로 시작하기</button>
+            <button onClick={() => handleStartAuth('guest')} className="w-full h-16 rounded-3xl bg-slate-100 text-slate-500 font-bold text-sm shadow-sm flex items-center justify-center gap-3 active:scale-95 transition-all mt-2"><User size={18} /> 가입 없이 이용하기</button>
+          </div>
+        )}
+
+        {setupStep === 'auth' && (
+          <div className="space-y-6">
+            <div className="flex items-center gap-4 mb-2">
+              <button onClick={() => setSetupStep('platform')} className="text-slate-400"><ChevronLeft size={24} /></button>
+              <h3 className="text-lg font-bold">인증하기</h3>
+            </div>
+            <div className="space-y-4">
+              <input type="email" value={loginId} onChange={(e) => setLoginId(e.target.value)} placeholder="이메일 또는 아이디" className="w-full h-16 bg-white border border-slate-100 rounded-3xl px-6 text-[15px] focus:outline-none shadow-inner-soft" />
+              <input type="password" value={loginPw} onChange={(e) => setLoginPw(e.target.value)} placeholder="비밀번호" className="w-full h-16 bg-white border border-slate-100 rounded-3xl px-6 text-[15px] focus:outline-none shadow-inner-soft" />
+            </div>
+            <button onClick={handleAuthSubmit} className="w-full h-16 rounded-full bg-slate-900 text-white font-bold shadow-premium active:scale-95 transition-all">인증 완료</button>
+          </div>
+        )}
+
+        {setupStep === 'profile' && (
+          <div className="space-y-8">
+            <div className="text-center space-y-2">
+              <h3 className="text-xl font-bold">환영합니다!</h3>
+              <p className="text-xs text-slate-400">서비스 이용을 위해 이름을 설정해주십시오.</p>
+            </div>
+            <div className="space-y-6">
+              <input type="text" value={userName} onChange={(e) => setUserName(e.target.value)} placeholder="이름" className="w-full h-16 bg-white border border-slate-100 rounded-3xl px-6 text-[15px] focus:outline-none shadow-inner-soft" />
+              <input type="date" value={userBirth} onChange={(e) => setUserBirth(e.target.value)} className="w-full h-16 bg-white border border-slate-100 rounded-3xl px-6 text-[15px] focus:outline-none shadow-inner-soft" />
+            </div>
+            <button onClick={handleSetupComplete} className="w-full h-18 rounded-[2.2rem] bg-slate-900 text-white font-bold text-base shadow-premium active:scale-95 transition-all">대화 시작하기</button>
+          </div>
+        )}
       </div>
-    );
-  };
+    </div>
+  );
 
   const renderContent = () => {
-    if (showArchive) return <WisdomArchive category={archiveCategory} onReadFull={() => {}} onStartChat={(m) => { setSelectedMode(m); setView('chat'); setShowArchive(false); }} />;
+    if (showArchive) return <WisdomArchive category={archiveCategory} onReadFull={() => {}} onStartChat={(m) => checkLogin() && (setSelectedMode(m), setView('chat'), setShowArchive(false))} />;
     switch(view) {
-      case 'level-detail': return <LevelDetailPage currentEnergy={currentEnergy} onBack={() => setView('home')} activeMissions={activeMissions} onToggleMission={handleToggleMission} onSaveMissionRecord={handleSaveMissionRecord} missionHistory={missionHistory} detailTab={levelDetailTab} />;
+      case 'level-detail': return <LevelDetailPage currentEnergy={currentEnergy} onBack={() => setView('home')} activeMissions={activeMissions} onToggleMission={() => {}} onSaveMissionRecord={() => {}} missionHistory={missionHistory} detailTab={levelDetailTab} />;
       case 'history-detail': return <HistoryDetailPage history={energyHistory} onBack={() => setView('home')} />;
       case 'insight': return <InsightView onBack={() => setView('home')} />;
       case 'meditation': return <MeditationView onBack={() => setView('home')} />;
       case 'library': return <LibraryView onBack={() => setView('home')} onSelectCategory={(cat) => { setArchiveCategory(cat); setShowArchive(true); }} />;
       case 'profile':
         return (
-          <div className="flex-1 p-8 pt-20 space-y-10 animate-in overflow-y-auto">
+          <div className="flex-1 p-8 pt-20 space-y-10 overflow-y-auto">
             <div className="flex items-center gap-4">
               <button onClick={() => setView('home')} className="p-2 -ml-2 text-slate-400"><ChevronLeft size={24} /></button>
               <h2 className="serif text-2xl font-bold">개인정보 수정</h2>
             </div>
             <div className="space-y-6">
-              <div className="space-y-2">
-                <label className="text-meta px-1">이름</label>
-                <div className="relative">
-                  <User size={18} className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300" />
-                  <input type="text" value={userName} onChange={(e) => setUserName(e.target.value)} className="w-full h-16 bg-white border border-slate-100 rounded-3xl px-14 text-[15px] focus:outline-none" />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <label className="text-meta px-1">생년월일</label>
-                <div className="relative">
-                  <Calendar size={18} className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300" />
-                  <input type="date" value={userBirth} onChange={(e) => setUserBirth(e.target.value)} className="w-full h-16 bg-white border border-slate-100 rounded-3xl px-14 text-[15px] focus:outline-none" />
-                </div>
-              </div>
-              <button onClick={handleUpdateProfile} className="w-full h-18 rounded-[2rem] bg-slate-900 text-white font-bold text-base shadow-premium">수정 완료하기</button>
-            </div>
-          </div>
-        );
-      case 'admin':
-        return (
-          <div className="flex-1 p-8 pt-20 space-y-10 animate-in overflow-y-auto">
-            <div className="flex items-center gap-4">
-              <button onClick={() => setView('home')} className="p-2 -ml-2 text-slate-400"><ChevronLeft size={24} /></button>
-              <h2 className="serif text-2xl font-bold">관리자 대시보드</h2>
-            </div>
-            <div className="space-y-4">
-              <p className="text-meta">등록된 사용자 정보 ({allUsers.length})</p>
-              <div className="space-y-3">
-                {allUsers.map((u, i) => (
-                  <div key={i} className="p-5 rounded-3xl bg-white border border-slate-100 shadow-sm flex items-center justify-between">
-                    <div>
-                      <h4 className="font-bold text-slate-900">{u.name}</h4>
-                      <p className="text-xs text-slate-400 font-medium">생년월일: {u.birth}</p>
-                    </div>
-                    <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-200">
-                      <User size={14} />
-                    </div>
-                  </div>
-                ))}
-                {allUsers.length === 0 && <p className="text-center text-slate-300 py-10">데이터가 존재하지 않습니다.</p>}
-              </div>
+              <input type="text" value={userName} onChange={(e) => setUserName(e.target.value)} className="w-full h-16 bg-white border border-slate-100 rounded-3xl px-6" />
+              <input type="date" value={userBirth} onChange={(e) => setUserBirth(e.target.value)} className="w-full h-16 bg-white border border-slate-100 rounded-3xl px-6" />
+              <button onClick={() => (localStorage.setItem('user_name', userName), setView('home'))} className="w-full h-18 rounded-[2rem] bg-slate-900 text-white font-bold">수정 완료</button>
             </div>
           </div>
         );
       case 'home': return (
         <EnergyDashboard 
-          currentEnergy={currentEnergy} 
-          history={energyHistory} 
-          lang={lang} 
+          currentEnergy={currentEnergy} history={energyHistory} lang={lang} 
           onStartChat={() => checkLogin() && setView('chat')} 
           onViewLevel={() => checkLogin() && (setLevelDetailTab('energy'), setView('level-detail'))} 
           onViewMission={() => checkLogin() && (setLevelDetailTab('mission'), setView('level-detail'))}
@@ -541,58 +281,29 @@ const App: React.FC = () => {
       case 'chat':
         return (
           <div className="flex-1 flex flex-col relative h-full overflow-hidden">
-            <div className="absolute inset-0 pointer-events-none opacity-[0.03] z-0">
-               {selectedMode === ConsciousnessMode.Jesus && <AmbientLatinCross size={400} className="absolute -left-[200px] top-[12%]" />}
-               {selectedMode === ConsciousnessMode.Buddha && <AmbientLotus size={400} className="absolute -right-20 top-[18%] -rotate-12" />}
-               {selectedMode === ConsciousnessMode.Sage && <AmbientEnergy size={400} className="absolute -left-20 top-[18%]" />}
-               {selectedMode === ConsciousnessMode.Unified && <AmbientSparkles size={400} className="absolute -right-20 top-[18%]" />}
-            </div>
-
-            <div ref={scrollRef} className="flex-1 overflow-y-auto relative scroll-smooth z-10 flex flex-col pt-20 px-8 pb-44">
+            <div ref={scrollRef} className="flex-1 overflow-y-auto scroll-smooth z-10 flex flex-col pt-20 px-8 pb-44">
               {renderHeader('text-slate-900')}
-              
-              <div className="flex-none pb-4">
-                <div className="flex bg-white p-1.5 rounded-[2.2rem] border border-slate-100 mb-4 shadow-sm">
-                  {(Object.keys(MODE_CONFIG) as ConsciousnessMode[]).map(m => (
-                    <button key={m} onClick={() => setSelectedMode(m)} className={`flex-1 py-3.5 rounded-[1.6rem] text-[10px] font-bold uppercase tracking-wider transition-all ${selectedMode === m ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-400 hover:text-slate-900'}`}>
-                      {lang === 'ko' ? MODE_CONFIG[m].label.split(' ')[0] : MODE_CONFIG[m].label.split(' ')[0]}
-                    </button>
-                  ))}
-                </div>
+              <div className="flex bg-white p-1.5 rounded-[2.2rem] border border-slate-100 mb-4 shadow-sm">
+                {(Object.keys(MODE_CONFIG) as ConsciousnessMode[]).map(m => (
+                  <button key={m} onClick={() => setSelectedMode(m)} className={`flex-1 py-3.5 rounded-[1.6rem] text-[10px] font-bold transition-all ${selectedMode === m ? 'bg-slate-900 text-white' : 'text-slate-400'}`}>
+                    {MODE_CONFIG[m].label.split(' ')[0]}
+                  </button>
+                ))}
               </div>
-
               <div className="space-y-10">
                 {messages.map((msg, i) => (
-                  <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-in`}>
-                    <div className={`max-w-[92%] ${msg.role === 'user' ? 'max-w-[85%]' : 'w-full'}`}>
-                      {msg.role === 'user' ? (
-                        <div className="p-6 px-7 rounded-[2.4rem] rounded-tr-md bg-growth-blue text-white font-medium shadow-xl shadow-growth-blue/10 text-[15px]">{msg.content}</div>
-                      ) : (
-                        msg.data ? <PrescriptionView data={msg.data} mode={selectedMode} lang={lang} isLocked={isLocked && i === messages.length - 1} onUnlock={() => setShowSubscription(true)} activeMissions={activeMissions} onToggleMission={handleToggleMission} /> : <div className="p-10 text-slate-800 text-center font-bold serif bg-white rounded-[3rem] border border-slate-50 shadow-sm text-lg">{msg.content}</div>
-                      )}
+                  <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                    <div className={msg.role === 'user' ? 'max-w-[85%]' : 'w-full'}>
+                      {msg.role === 'user' ? <div className="p-6 rounded-[2.4rem] rounded-tr-md bg-growth-blue text-white text-[15px]">{msg.content}</div> : msg.data ? <PrescriptionView data={msg.data} mode={selectedMode} lang={lang} isLocked={isLocked && i === messages.length - 1} activeMissions={[]} onToggleMission={() => {}} /> : <div className="p-10 text-center font-bold serif bg-white rounded-[3rem] shadow-sm">{msg.content}</div>}
                     </div>
                   </div>
                 ))}
-                {isLoading && (
-                  <div className="flex justify-start animate-in">
-                    <div className="bg-white/50 backdrop-blur-sm p-6 px-8 rounded-[2rem] border border-slate-100 flex items-center gap-4">
-                      <div className="flex gap-1.5">
-                        <div className="w-2 h-2 bg-growth-blue rounded-full animate-bounce" />
-                        <div className="w-2 h-2 bg-growth-blue rounded-full animate-bounce [animation-delay:0.2s]" />
-                        <div className="w-2 h-2 bg-growth-blue rounded-full animate-bounce [animation-delay:0.4s]" />
-                      </div>
-                      <span className="text-xs font-bold text-slate-400 uppercase tracking-[0.3em]">{t.syncing}</span>
-                    </div>
-                  </div>
-                )}
+                {isLoading && <div className="p-6 text-xs text-slate-400 font-bold animate-pulse">동기화 중...</div>}
               </div>
             </div>
-
-            <div className="absolute bottom-6 left-8 right-8 z-50">
-              <div className="relative group">
-                <input type="text" value={input} onChange={(e) => setInput(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleSend()} disabled={isLoading || isLocked} placeholder={isLocked ? (lang === 'ko' ? "오늘의 분석 한도를 초과했습니다" : "Limit reached") : (lang === 'ko' ? "지금 내면의 소리를 들려주십시오..." : "Talk to me...")} className="w-full h-18 bg-white/95 backdrop-blur-md border border-slate-100 rounded-full px-8 pr-20 text-[15px] text-slate-900 focus:outline-none focus:ring-2 focus:ring-growth-blue/20 shadow-premium transition-all disabled:opacity-50" />
-                <button onClick={handleSend} disabled={!input.trim() || isLoading || isLocked} className="absolute right-2 top-2 w-14 h-14 rounded-full bg-slate-900 text-white flex items-center justify-center shadow-lg active:scale-90 disabled:bg-slate-100 disabled:text-slate-300"><Send size={20} /></button>
-              </div>
+            <div className="absolute bottom-6 left-8 right-8 z-50 flex items-center gap-2">
+              <input type="text" value={input} onChange={(e) => setInput(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleSend()} placeholder="내면의 소리를 들려주십시오..." className="flex-1 h-18 bg-white border border-slate-100 rounded-full px-8 shadow-premium" />
+              <button onClick={handleSend} className="w-18 h-18 rounded-full bg-slate-900 text-white flex items-center justify-center shadow-lg"><Send size={20} /></button>
             </div>
           </div>
         );
@@ -603,115 +314,12 @@ const App: React.FC = () => {
   return (
     <div className="h-screen max-w-md mx-auto flex flex-col bg-cosmic-bg text-slate-900 overflow-hidden shadow-2xl relative">
       <div className="flex-1 relative flex flex-col overflow-hidden">{renderContent()}</div>
-
-      {toastMessage && (
-        <div className="fixed inset-0 z-[400] flex items-center justify-center pointer-events-none p-6 animate-in fade-in duration-300">
-          <div className="bg-slate-900/90 backdrop-blur-md text-white px-8 py-6 rounded-[2.5rem] shadow-2xl border border-white/10 flex items-center gap-5 max-w-xs pointer-events-auto shadow-premium">
-            <div className="w-10 h-10 rounded-full bg-growth-blue/20 flex items-center justify-center shrink-0">
-              <InfoIcon size={20} className="text-growth-blue" />
-            </div>
-            <p className="text-sm font-bold leading-snug serif">{toastMessage}</p>
-          </div>
-        </div>
-      )}
-
       <nav className="flex-none h-24 bottom-nav-blur flex items-center justify-around px-12 pb-4 relative z-40">
-        <button onClick={() => { setView('home'); setShowArchive(false); }} className={`p-4 transition-all ${view === 'home' && !showArchive ? 'text-growth-blue scale-110' : 'text-slate-300'}`}><LayoutDashboard size={28} /></button>
-        <button onClick={() => { if (checkLogin()) { setView('chat'); setShowArchive(false); } }} className={`w-16 h-16 -mt-10 rounded-full bg-slate-900 flex items-center justify-center text-white shadow-premium active:scale-90 transition-all`}><Zap size={24} fill="currentColor" /></button>
-        <button onClick={() => { if (checkLogin()) { setView('library'); setShowArchive(false); } }} className={`p-4 transition-all ${view === 'library' || showArchive ? 'text-growth-blue scale-110' : 'text-slate-300'}`}><Archive size={28} /></button>
+        <button onClick={() => setView('home')} className={`p-4 transition-all ${view === 'home' ? 'text-growth-blue' : 'text-slate-300'}`}><LayoutDashboard size={28} /></button>
+        <button onClick={() => checkLogin() && setView('chat')} className="w-16 h-16 -mt-10 rounded-full bg-slate-900 flex items-center justify-center text-white shadow-premium"><Zap size={24} fill="currentColor" /></button>
+        <button onClick={() => checkLogin() && setView('library')} className={`p-4 transition-all ${view === 'library' ? 'text-growth-blue' : 'text-slate-300'}`}><Archive size={28} /></button>
       </nav>
-
       {showSetup && renderSetup()}
-
-      {isMenuOpen && (
-        <div className="fixed inset-0 z-[200] flex animate-in fade-in duration-300">
-          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setIsMenuOpen(false)} />
-          <div className="relative w-[80%] max-sm bg-white h-full shadow-2xl flex flex-col p-10 space-y-12 animate-in slide-in-from-right-10 duration-500">
-            <div className="flex justify-between items-center">
-              <h2 className="serif text-2xl font-bold">인간다움</h2>
-              <button onClick={() => setIsMenuOpen(false)} className="p-2 -mr-2 text-slate-300"><X size={24} /></button>
-            </div>
-            
-            <div className="space-y-6 overflow-y-auto pb-10">
-              <div className="space-y-4">
-                <p className="text-meta">언어 설정 (Language)</p>
-                <div className="grid grid-cols-2 gap-2">
-                  {[{ id: 'ko', label: '한국어' }, { id: 'en', label: 'English' }, { id: 'ja', label: '日本語' }, { id: 'fr', label: 'Français' }].map(l => (
-                    <button key={l.id} onClick={() => { setLang(l.id as AppLanguage); localStorage.setItem('app_lang', l.id); }} className={`py-3 rounded-xl text-xs font-bold transition-all border ${lang === l.id ? 'bg-slate-900 text-white border-slate-900' : 'bg-slate-50 text-slate-400 border-slate-100'}`}>
-                      {l.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="space-y-4 pt-6 border-t border-slate-50">
-                <p className="text-meta">계정 관리</p>
-                <button onClick={() => { if (checkLogin()) { setView('profile'); setIsMenuOpen(false); } }} className="w-full p-5 rounded-2xl bg-slate-50 border border-slate-100 flex items-center gap-4 text-slate-600 hover:bg-white transition-all">
-                  <Settings size={18} />
-                  <span className="text-sm font-bold">개인정보 수정</span>
-                </button>
-                <button onClick={() => { if (checkLogin()) { setView('admin'); setIsMenuOpen(false); } }} className="w-full p-5 rounded-2xl bg-slate-50 border border-slate-100 flex items-center gap-4 text-slate-600 hover:bg-white transition-all">
-                  <ShieldCheck size={18} />
-                  <span className="text-sm font-bold">관리자 대시보드</span>
-                </button>
-              </div>
-
-              <div className="space-y-4 pt-6 border-t border-slate-50">
-                <p className="text-meta">멤버십</p>
-                <button onClick={() => { if (checkLogin()) { setShowSubscription(true); setIsMenuOpen(false); } }} className="w-full p-6 rounded-3xl bg-slate-50 border border-slate-100 flex items-center justify-between group active:bg-slate-100 transition-all">
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-xl bg-growth-blue flex items-center justify-center text-white">
-                      <Sparkles size={18} />
-                    </div>
-                    <div className="text-left">
-                      <h4 className="text-sm font-bold text-slate-900">Premium Pass</h4>
-                      <p className="text-[10px] text-slate-400 uppercase tracking-widest">분석 제한 해제</p>
-                    </div>
-                  </div>
-                  <ChevronRight size={18} className="text-slate-200" />
-                </button>
-              </div>
-            </div>
-
-            <div className="mt-auto">
-               <p className="text-[10px] text-slate-300 font-bold uppercase tracking-[0.4em] text-center">Version 1.2.0.CONSCIOUSNESS</p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showSubscription && (
-        <div className="fixed inset-0 z-[300] flex items-center justify-center p-8 animate-in fade-in duration-300">
-          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" onClick={() => setShowSubscription(false)} />
-          <div className="relative w-full max-w-sm bg-white rounded-[3.5rem] p-10 space-y-10 shadow-2xl animate-in zoom-in-95 duration-500">
-             <div className="text-center space-y-4">
-               <div className="w-16 h-16 rounded-3xl bg-slate-900 flex items-center justify-center mx-auto text-white shadow-xl">
-                 <Lock size={28} />
-               </div>
-               <h3 className="serif text-2xl font-bold text-slate-900 leading-snug">{t.paywall.title}</h3>
-               <p className="text-xs text-slate-400 font-medium leading-relaxed">{t.paywall.subtitle}</p>
-             </div>
-             <div className="space-y-3">
-               {[
-                 { id: '1', title: t.paywall.option1, price: t.paywall.option1Price },
-                 { id: '2', title: t.paywall.option2, price: t.paywall.option2Price, best: true },
-                 { id: '3', title: t.paywall.option3, price: t.paywall.option3Price }
-               ].map(opt => (
-                 <button key={opt.id} className={`w-full p-6 rounded-3xl border-2 flex items-center justify-between transition-all ${opt.best ? 'border-growth-blue bg-blue-50/20' : 'border-slate-100 hover:border-slate-200'}`}>
-                    <div className="text-left">
-                      <span className="text-[13px] font-bold text-slate-900 block">{opt.title}</span>
-                      <span className="text-[11px] font-medium text-slate-400">{opt.price}</span>
-                    </div>
-                    {opt.best && <span className="px-3 py-1 bg-growth-blue text-white text-[8px] font-bold uppercase tracking-widest rounded-full">Best</span>}
-                 </button>
-               ))}
-             </div>
-             <button className="w-full py-5 rounded-full bg-slate-900 text-white font-bold text-sm shadow-premium active:scale-95 transition-all">
-                {t.paywall.subscribe}
-             </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
