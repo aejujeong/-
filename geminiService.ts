@@ -3,7 +3,14 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { NewApiResponse, ConsciousnessMode, AppLanguage } from "./types";
 import { getSystemPrompt } from "./constants";
 
-const getAI = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
+// API 키가 없을 경우를 대비한 안전한 초기화
+const getAI = () => {
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) {
+    console.error("Gemini API_KEY가 설정되지 않았습니다. 환경 변수를 확인해주세요.");
+  }
+  return new GoogleGenAI({ apiKey: apiKey || "" });
+};
 
 const responseSchema = {
   type: Type.OBJECT,
@@ -49,7 +56,7 @@ const responseSchema = {
             properties: {
               title: { type: Type.STRING },
               description: { type: Type.STRING },
-              key_guide: { type: Type.STRING }, // 스키마에 핵심 가이드 추가
+              key_guide: { type: Type.STRING },
               method: {
                 type: Type.OBJECT,
                 properties: {
@@ -88,27 +95,30 @@ export async function processConsciousness(
   mode: ConsciousnessMode,
   lang: AppLanguage
 ): Promise<NewApiResponse> {
-  const ai = getAI();
-  const response = await ai.models.generateContent({
-    model: 'gemini-3-pro-preview',
-    contents: history.map(h => ({
-      role: h.role === 'user' ? 'user' : 'model',
-      parts: [{ text: h.content }]
-    })),
-    config: {
-      systemInstruction: getSystemPrompt(mode, lang),
-      responseMimeType: "application/json",
-      responseSchema: responseSchema,
-      temperature: 0.7
-    }
-  });
-
   try {
+    const ai = getAI();
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview', // 가장 안정적인 최신 모델 사용
+      contents: history.map(h => ({
+        role: h.role === 'user' ? 'user' : 'model',
+        parts: [{ text: h.content }]
+      })),
+      config: {
+        systemInstruction: getSystemPrompt(mode, lang),
+        responseMimeType: "application/json",
+        responseSchema: responseSchema,
+        temperature: 0.7
+      }
+    });
+
     const text = response.text || "{}";
     return JSON.parse(text) as NewApiResponse;
-  } catch (e) {
-    console.error("AI Analysis Parse Error:", e);
-    throw new Error("Analysis failed");
+  } catch (e: any) {
+    console.error("Gemini API 호출 에러 상세:", e);
+    if (e.message?.includes("API key not valid")) {
+      throw new Error("API 키가 유효하지 않습니다. 다시 확인해주세요.");
+    }
+    throw e;
   }
 }
 
@@ -120,18 +130,14 @@ export async function processAnattaInsight(
   const systemPrompt = `
     너는 사용자의 자아 관념을 해체하여 불교의 '무아(無我)'와 '연기(緣起)'의 통찰로 이끄는 명상 가이드다.
     사용자는 자신을 '${selectedKeyword}'라고 믿고 있다. 
-    너의 목표는 사용자가 자신이라고 믿는 육체, 감정, 사회적 역할이 시시각각 변하며 고정된 실체가 없음을 깨닫게 하는 것이다.
-    
     질문 규칙:
-    1. 매우 차분하고, 철학적이며, 강요하지 않는 고요한 말투를 유지하라.
-    2. 한 번에 하나의 질문만 던져라.
-    3. 사용자의 답변을 경청하고, 그 답변 속에서 '변하는 성질'을 찾아내어 다시 질문하라.
-    4. 3문답 이내에 대화를 마무리할 수 있도록 통찰의 깊이를 조절하라.
-    5. 답변은 오직 텍스트로만 반환하라.
+    1. 매우 차분하고 고요한 말투 유지.
+    2. 한 번에 하나의 질문만.
+    3. 3문답 이내 마무리.
   `;
 
   const response = await ai.models.generateContent({
-    model: 'gemini-3-pro-preview',
+    model: 'gemini-3-flash-preview',
     contents: history.map(h => ({
       role: h.role === 'user' ? 'user' : 'model',
       parts: [{ text: h.content }]
@@ -142,5 +148,5 @@ export async function processAnattaInsight(
     }
   });
 
-  return response.text || "지혜의 흐름이 잠시 멈췄습니다. 다시 말씀해 주시겠습니까?";
+  return response.text || "지혜의 흐름이 잠시 멈췄습니다.";
 }

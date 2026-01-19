@@ -49,13 +49,12 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [selectedMode, setSelectedMode] = useState<ConsciousnessMode>(ConsciousnessMode.Unified);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [showSubscription, setShowSubscription] = useState(false);
   
   const [activeMissions, setActiveMissions] = useState<MissionItem[]>([]);
   const [missionHistory, setMissionHistory] = useState<MissionRecord[]>([]);
   const [levelDetailTab, setLevelDetailTab] = useState<'energy' | 'mission'>('energy');
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  // 로그인 관련 상태
   const [showSetup, setShowSetup] = useState(false);
   const [setupStep, setSetupStep] = useState<'platform' | 'auth' | 'profile'>('platform');
   const [selectedPlatform, setSelectedPlatform] = useState<string>('');
@@ -70,7 +69,6 @@ const App: React.FC = () => {
   const [allUsers, setAllUsers] = useState<{id: string, name: string, birth: string}[]>([]);
   
   const scrollRef = useRef<HTMLDivElement>(null);
-  const t = UI_STRINGS[lang as keyof typeof UI_STRINGS] || UI_STRINGS.en;
   const messages = useMemo(() => messagesByMode[selectedMode], [messagesByMode, selectedMode]);
   const isLocked = useMemo(() => messages.filter(m => m.role === 'user').length >= 5, [messages]);
 
@@ -97,9 +95,8 @@ const App: React.FC = () => {
     wisdomDb.initialize();
   }, []);
 
-  // 로그인 체크 및 팝업 유도
   const checkLogin = () => {
-    if (!userName) {
+    if (!userName || userName.trim() === '') {
       setSetupStep('platform');
       setShowSetup(true);
       return false;
@@ -144,10 +141,17 @@ const App: React.FC = () => {
 
   const handleSend = async () => {
     if (!input.trim() || isLoading || isLocked) return;
+
+    if (!process.env.API_KEY) {
+      alert("API 키가 설정되지 않았습니다. 넷리파이 설정에서 API_KEY를 등록해주세요.");
+      return;
+    }
+
     const userMessage: ChatMessage = { role: 'user', content: input.trim(), timestamp: Date.now() };
     setMessagesByMode(prev => ({ ...prev, [selectedMode]: [...prev[selectedMode], userMessage] }));
     setInput('');
     setIsLoading(true);
+
     try {
       const response = await processConsciousness([...messages, userMessage].map(m => ({ role: m.role, content: m.content })), selectedMode, lang);
       const ts = Date.now();
@@ -164,18 +168,30 @@ const App: React.FC = () => {
       });
       setCurrentEnergy(newRecord);
       setMessagesByMode(prev => ({ ...prev, [selectedMode]: [...prev[selectedMode], { role: 'assistant', content: "", timestamp: ts, data: response } as ChatMessage] }));
-    } catch (error) {
-      setMessagesByMode(prev => ({ ...prev, [selectedMode]: [...prev[selectedMode], { role: 'assistant', content: '오류가 발생했습니다.', timestamp: Date.now() } as ChatMessage] }));
-    } finally { setIsLoading(false); }
+    } catch (error: any) {
+      console.error("채팅 처리 중 에러 발생:", error);
+      const errorMsg = error.message?.includes('429') 
+        ? '사용량이 많아 잠시 후에 다시 시도해주십시오.' 
+        : (error.message || '오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+      setMessagesByMode(prev => ({ ...prev, [selectedMode]: [...prev[selectedMode], { role: 'assistant', content: errorMsg, timestamp: Date.now() } as ChatMessage] }));
+    } finally { 
+      setIsLoading(false); 
+      // 전송 후 스크롤 하단 이동
+      setTimeout(() => {
+        if (scrollRef.current) {
+          scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+        }
+      }, 100);
+    }
   };
 
   const renderHeader = (colorClass: string) => (
     <header className={`absolute top-0 left-0 right-0 z-[100] px-6 py-5 flex items-center justify-between pointer-events-none ${colorClass}`}>
       <button 
-        onClick={() => userName ? setView('profile') : (setSetupStep('platform'), setShowSetup(true))}
-        className="text-current text-xs font-bold pointer-events-auto px-2 py-1 active:opacity-60 transition-all drop-shadow-md"
+        onClick={() => userName ? setView('profile') : checkLogin()}
+        className="text-current text-xs font-bold pointer-events-auto px-4 py-2 bg-white/10 backdrop-blur-md rounded-full active:opacity-60 transition-all drop-shadow-md"
       >
-        {userName ? `${userName} (${currentEnergy?.level || 0}단계)` : '로그인'}
+        {userName ? `${userName} (${currentEnergy?.level || 0}단)` : '로그인'}
       </button>
       <button 
         onClick={() => setIsMenuOpen(true)} 
@@ -233,10 +249,10 @@ const App: React.FC = () => {
               <p className="text-xs text-slate-400">서비스 이용을 위해 이름을 설정해주십시오.</p>
             </div>
             <div className="space-y-6">
-              <input type="text" value={userName} onChange={(e) => setUserName(e.target.value)} placeholder="이름" className="w-full h-16 bg-white border border-slate-100 rounded-3xl px-6 text-[15px] focus:outline-none shadow-inner-soft" />
+              <input type="text" value={userName} onChange={(e) => setUserName(e.target.value)} placeholder="이름을 입력하세요" className="w-full h-16 bg-white border border-slate-100 rounded-3xl px-6 text-[15px] focus:outline-none shadow-inner-soft" />
               <input type="date" value={userBirth} onChange={(e) => setUserBirth(e.target.value)} className="w-full h-16 bg-white border border-slate-100 rounded-3xl px-6 text-[15px] focus:outline-none shadow-inner-soft" />
             </div>
-            <button onClick={handleSetupComplete} className="w-full h-18 rounded-[2.2rem] bg-slate-900 text-white font-bold text-base shadow-premium active:scale-95 transition-all">대화 시작하기</button>
+            <button onClick={handleSetupComplete} className="w-full h-18 rounded-[2.2rem] bg-slate-900 text-white font-bold text-base shadow-premium active:scale-95 transition-all">설정 완료</button>
           </div>
         )}
       </div>
@@ -259,9 +275,15 @@ const App: React.FC = () => {
               <h2 className="serif text-2xl font-bold">개인정보 수정</h2>
             </div>
             <div className="space-y-6">
-              <input type="text" value={userName} onChange={(e) => setUserName(e.target.value)} className="w-full h-16 bg-white border border-slate-100 rounded-3xl px-6" />
-              <input type="date" value={userBirth} onChange={(e) => setUserBirth(e.target.value)} className="w-full h-16 bg-white border border-slate-100 rounded-3xl px-6" />
-              <button onClick={() => (localStorage.setItem('user_name', userName), setView('home'))} className="w-full h-18 rounded-[2rem] bg-slate-900 text-white font-bold">수정 완료</button>
+              <div className="space-y-2">
+                <label className="text-meta">이름</label>
+                <input type="text" value={userName} onChange={(e) => setUserName(e.target.value)} className="w-full h-16 bg-white border border-slate-100 rounded-3xl px-6" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-meta">생년월일</label>
+                <input type="date" value={userBirth} onChange={(e) => setUserBirth(e.target.value)} className="w-full h-16 bg-white border border-slate-100 rounded-3xl px-6" />
+              </div>
+              <button onClick={() => { localStorage.setItem('user_name', userName); localStorage.setItem('user_birth', userBirth); alert('저장되었습니다.'); setView('home'); }} className="w-full h-18 rounded-[2rem] bg-slate-900 text-white font-bold">저장하기</button>
             </div>
           </div>
         );
@@ -285,25 +307,44 @@ const App: React.FC = () => {
               {renderHeader('text-slate-900')}
               <div className="flex bg-white p-1.5 rounded-[2.2rem] border border-slate-100 mb-4 shadow-sm">
                 {(Object.keys(MODE_CONFIG) as ConsciousnessMode[]).map(m => (
-                  <button key={m} onClick={() => setSelectedMode(m)} className={`flex-1 py-3.5 rounded-[1.6rem] text-[10px] font-bold transition-all ${selectedMode === m ? 'bg-slate-900 text-white' : 'text-slate-400'}`}>
+                  <button key={m} onClick={() => setSelectedMode(m)} className={`flex-1 py-3.5 rounded-[1.6rem] text-[10px] font-bold transition-all ${selectedMode === m ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-400'}`}>
                     {MODE_CONFIG[m].label.split(' ')[0]}
                   </button>
                 ))}
               </div>
               <div className="space-y-10">
+                {messages.length === 0 && (
+                   <div className="text-center py-20 opacity-30">
+                     <p className="serif text-xl font-bold">당신의 고통이나 고민을<br/>정직하게 들려주십시오.</p>
+                   </div>
+                )}
                 {messages.map((msg, i) => (
                   <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                     <div className={msg.role === 'user' ? 'max-w-[85%]' : 'w-full'}>
-                      {msg.role === 'user' ? <div className="p-6 rounded-[2.4rem] rounded-tr-md bg-growth-blue text-white text-[15px]">{msg.content}</div> : msg.data ? <PrescriptionView data={msg.data} mode={selectedMode} lang={lang} isLocked={isLocked && i === messages.length - 1} activeMissions={[]} onToggleMission={() => {}} /> : <div className="p-10 text-center font-bold serif bg-white rounded-[3rem] shadow-sm">{msg.content}</div>}
+                      {msg.role === 'user' ? <div className="p-6 rounded-[2.4rem] rounded-tr-md bg-growth-blue text-white text-[15px] shadow-lg">{msg.content}</div> : msg.data ? <PrescriptionView data={msg.data} mode={selectedMode} lang={lang} isLocked={isLocked && i === messages.length - 1} activeMissions={[]} onToggleMission={() => {}} /> : <div className="p-10 text-center font-bold serif bg-white rounded-[3rem] shadow-sm">{msg.content}</div>}
                     </div>
                   </div>
                 ))}
-                {isLoading && <div className="p-6 text-xs text-slate-400 font-bold animate-pulse">동기화 중...</div>}
+                {isLoading && (
+                  <div className="flex justify-start">
+                    <div className="p-6 rounded-[2rem] bg-white border border-slate-50 flex items-center gap-2 animate-pulse">
+                      <div className="w-1.5 h-1.5 bg-growth-blue rounded-full"></div>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">분석 중...</span>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
-            <div className="absolute bottom-6 left-8 right-8 z-50 flex items-center gap-2">
-              <input type="text" value={input} onChange={(e) => setInput(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleSend()} placeholder="내면의 소리를 들려주십시오..." className="flex-1 h-18 bg-white border border-slate-100 rounded-full px-8 shadow-premium" />
-              <button onClick={handleSend} className="w-18 h-18 rounded-full bg-slate-900 text-white flex items-center justify-center shadow-lg"><Send size={20} /></button>
+            <div className="absolute bottom-6 left-8 right-8 z-50 flex items-center gap-3">
+              <input 
+                type="text" 
+                value={input} 
+                onChange={(e) => setInput(e.target.value)} 
+                onKeyPress={(e) => e.key === 'Enter' && handleSend()} 
+                placeholder="내면의 소리를 들려주십시오..." 
+                className="flex-1 h-18 bg-white border border-slate-100 rounded-full px-8 shadow-premium focus:outline-none focus:ring-2 focus:ring-growth-blue/20" 
+              />
+              <button onClick={handleSend} disabled={!input.trim() || isLoading} className="w-18 h-18 rounded-full bg-slate-900 text-white flex items-center justify-center shadow-lg active:scale-95 disabled:opacity-50 transition-all"><Send size={20} /></button>
             </div>
           </div>
         );
@@ -314,11 +355,13 @@ const App: React.FC = () => {
   return (
     <div className="h-screen max-w-md mx-auto flex flex-col bg-cosmic-bg text-slate-900 overflow-hidden shadow-2xl relative">
       <div className="flex-1 relative flex flex-col overflow-hidden">{renderContent()}</div>
+      
       <nav className="flex-none h-24 bottom-nav-blur flex items-center justify-around px-12 pb-4 relative z-40">
-        <button onClick={() => setView('home')} className={`p-4 transition-all ${view === 'home' ? 'text-growth-blue' : 'text-slate-300'}`}><LayoutDashboard size={28} /></button>
-        <button onClick={() => checkLogin() && setView('chat')} className="w-16 h-16 -mt-10 rounded-full bg-slate-900 flex items-center justify-center text-white shadow-premium"><Zap size={24} fill="currentColor" /></button>
-        <button onClick={() => checkLogin() && setView('library')} className={`p-4 transition-all ${view === 'library' ? 'text-growth-blue' : 'text-slate-300'}`}><Archive size={28} /></button>
+        <button onClick={() => setView('home')} className={`p-4 transition-all ${view === 'home' ? 'text-growth-blue scale-110' : 'text-slate-300'}`}><LayoutDashboard size={28} /></button>
+        <button onClick={() => checkLogin() && setView('chat')} className={`w-16 h-16 -mt-10 rounded-full bg-slate-900 flex items-center justify-center text-white shadow-premium active:scale-90 transition-all`}><Zap size={24} fill="currentColor" /></button>
+        <button onClick={() => checkLogin() && setView('library')} className={`p-4 transition-all ${view === 'library' || showArchive ? 'text-growth-blue scale-110' : 'text-slate-300'}`}><Archive size={28} /></button>
       </nav>
+
       {showSetup && renderSetup()}
     </div>
   );
